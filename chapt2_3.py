@@ -96,12 +96,12 @@ class TD_table:
           self.aphl=aphl
           self.N=500
 
+      def sample(self,num):
+          self.matrix.sample(num)
+
       def re_aphl(self,i):
           if self.aphl>0.1:
              self.aphl =self.aphl*(self.N/(self.N+i))
-
-      def sample(self,num):
-          self.matrix.sample(num)
 
       def es_renew(self,state_now):
           for i in range(self.state_num):
