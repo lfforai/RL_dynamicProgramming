@@ -3,7 +3,7 @@ import numpy as np
 import random
 import gym
 from collections import deque
-
+#reward ong
 class DDPG:
     def __init__(self,filepath="/root/model2/",**kwargs):
         self.filepath=filepath
@@ -146,6 +146,60 @@ class DDPG:
                     state_now=state_next
 
     def sample_lr(self,num):
+        # length=len(self.memory)
+        # print("gym_CartPole_v0 samlpe start! length=:",length)
+        # if self.max_memory_len-length<self.increas_memory_len:
+        #     print("sample  is not  too big ,needing pop:",self.increas_memory_len-self.max_memory_len+length)
+        #     for index  in range(sample_num-sample_total_num+length):
+        #         self.memory.pop()
+        # d=0
+        # probility=1.0
+        # while d<self.increas_memory_len:
+        #     state_now = self.env.reset()
+        #     sum_loss=0
+        #     temp_list=[]
+        #     action_next=-1
+        #     while True:
+        #         self.env.render()
+        #         action_now=self.action_lr(state_now,self.greed)
+        #         state_next,reward,done,info = self.env.step(action_now)
+        #         x, x_dot, theta, theta_dot = state_next
+        #         r1 = (self.env.x_threshold - abs(x))/self.env.x_threshold - 0.8
+        #         r2 = (self.env.theta_threshold_radians - abs(theta))/self.env.theta_threshold_radians - 0.5
+        #         reward = r1 + r2
+        #         if  done:
+        #             if d<self.increas_memory_len:
+        #                 #e[0]当前s，e[1]跳转s,e[2]reward，e[3]当前action,e[4]done,e[5]:pro,e[6]:new
+        #                 temp_list.append((state_now,state_next,reward,action_now,action_next,-1))
+        #                 reward_back_total=0
+        #                 length_o=len(temp_list)
+        #                 temp=[]
+        #                 for index in range(length_o):
+        #                     index_o=length_o-1-index
+        #                     reward_back_total=self.r*reward_back_total+temp_list[index_o][2]
+        #                     temp.append([temp_list[index_o][0],temp_list[index_o][1],reward_back_total,temp_list[index_o][3], \
+        #                                  temp_list[index_o][4],temp_list[index_o][5],temp_list[index_o][6]])
+        #                 temp_list.clear()
+        #                 sum_loss+=reward
+        #                 self.memory.extend(temp)
+        #             else:
+        #                 return 0
+        #             d=d+1
+        #             if d%10==0:
+        #                 print("actor sample total reward:",sum_loss)
+        #             break
+        #         else:
+        #             if d<self.increas_memory_len:
+        #                 #e[0]当前s，e[1]跳转s,e[2]reward，e[3]当前action,e[4]done,e[5]:pro,e[6]:new
+        #                 temp_list.append((state_now,state_next,reward,action_now, 1,probility,1))
+        #                 sum_loss+=reward
+        #                 state_now=state_next
+        #             else:
+        #                 print(" total num sample:", len(self.memory))
+        #                 return 0
+        #             d=d+1
+        # print(" total num sample:", len(self.memory))
+        temp_list=[]
         num_increas=0
         for c in range(100000):
             if len(self.memory)>self.max_memory_len:

@@ -26,9 +26,6 @@ for gpu in gpus:
 from tensorflow.keras import layers
 
 
-
-
-
 #函数rare event example
 #用指数分布CE交叉熵最短路径P（S（x）>r）概率计算
 def  unite_exp(x=[],list_v=[]):#返回联合指数联合概率分布，不使用
