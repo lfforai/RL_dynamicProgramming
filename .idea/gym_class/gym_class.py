@@ -127,9 +127,11 @@ class gym_CartPole_v0:
                         reward_back_total=0
                         length_o=len(temp_list)
                         temp=[]
+                        # print("length:",length_o)
                         for index in range(length_o):
                             index_o=length_o-1-index
                             reward_back_total=self.r*reward_back_total+temp_list[index_o][2]
+                            # print("reward:",reward_back_total)
                             temp.append([temp_list[index_o][0],temp_list[index_o][1],reward_back_total,temp_list[index_o][3],\
                             temp_list[index_o][4],temp_list[index_o][5],temp_list[index_o][6]])
                         temp_list.clear()

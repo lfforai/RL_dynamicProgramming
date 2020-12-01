@@ -34,16 +34,15 @@ for gpu in gpus:
 
 from tensorflow.keras import backend as K
 def actor_loss(y_true, y_pred):
-    return -tf.reduce_mean(tf.reduce_sum(tf.multiply(y_true,y_pred),axis=1))
+    return -1.0*tf.reduce_mean(tf.reduce_sum(tf.multiply(y_true,tf.math.log(y_pred)),axis=1))
 
 class actor(tf.keras.Model):# compute value
     def __init__(self,filename='./data/actor',name="actor",training=True,**kwargs):
         super(actor, self).__init__(name=name,**kwargs)
         self.training=training
-        self.block_1 = Linear(name="critic_linear1",units=256,training=training)
-        self.block_2 = Linear(name="critic_linear2",units=256,training=training)
-        self.block_3 = Linear(name="critic_linear3",units=126,training=training)
-        self.block_4 = Linear(name="critic_linear2",units=2,training=training)
+        self.block_1 = Linear(name="critic_linear1",units=128,training=training)
+        self.block_2 = Linear(name="critic_linear2",units=128,training=training)
+        self.block_3 = Linear(name="critic_linear2",units=2,training=training)
         import os.path
         if os.path.isdir(filename):
            if os.listdir(filename):
@@ -61,22 +60,11 @@ class actor(tf.keras.Model):# compute value
         x = self.block_2(x)
         x = tf.nn.relu(x)
         x = self.block_3(x)
-        x = tf.nn.relu(x)
-        x = self.block_4(x)
         x =tf.nn.softmax(x)
         return x
 
     def train(self,x_train,y_ture,size,filename='./data/actor'):
-        import os.path
-        if os.path.isdir(filename):
-            if os.listdir(filename):
-                print("init load prameter from "+filename)
-                self.load_weights(filename+"/prameter")
-            else:
-                print("init prameter from tf.random 1")
-        else:
-            print("init prameter from tf.random 2")
-        optimizer = tf.keras.optimizers.Adam(learning_rate=2e-3)
+        optimizer = tf.keras.optimizers.Adam(learning_rate=1.5e-3)
         self.compile(optimizer, loss=actor_loss)
         self.fit(x_train, y_ture, epochs=5,batch_size=size,verbose=1)
         self.save_weights(filename+"/prameter")
@@ -96,7 +84,7 @@ class actor(tf.keras.Model):# compute value
 
 c=actor()
 car_gym=gym_CartPole_v0(action_class=c,randomaction=False)
-def train_actor(actor_o=c,car_o=car_gym,bitch_size=200):
+def train_actor(actor_o=c,car_o=car_gym,bitch_size=350):
     import random
     for i in range(10000):
         #catch sample
