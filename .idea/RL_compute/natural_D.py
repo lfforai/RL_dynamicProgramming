@@ -25,6 +25,7 @@ for gpu in gpus:
     tf.config.experimental.set_memory_growth(gpu, True)
 from tensorflow.keras import layers
 
+#not net
 #构造神经网
 class Linear(layers.Layer):
     def __init__(self, name="Linear",units=32,training=True,**kwargs):
