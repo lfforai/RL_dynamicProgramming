@@ -90,7 +90,7 @@ class actor(tf.keras.Model):
         self.training=training
         self.filename=filename
         self.KL_net=KL_net
-        self.e=0.00000001
+        self.e=0.0000000001
         self.block_1 = Linear(name="actor_linear1",units=64,training=training)
         self.block_2 = Linear(name="actor_linear2",units=64,training=training)
         self.block_3 = Linear(name="actor_linear3",units=2,training=training)
@@ -123,7 +123,6 @@ class actor(tf.keras.Model):
             F=self.KL_net.F
 
             #compute Dj
-
             with tf.GradientTape() as tape:
                  logits = self(x_train, training=True)
                  loss_value = actor_loss(y_true, logits)
@@ -136,9 +135,9 @@ class actor(tf.keras.Model):
             beta=np.sqrt(2*self.e/tf.matmul(tf.matmul(Dj_array_T,F),Dj_array_col).numpy()[0])
             print("a::",beta)
             # print(tf.eye(length))
-            beta=0.001
+            beta=0.01
             optimizer = tf.keras.optimizers.SGD(learning_rate=-1.0*beta)
-            grads=beta*tf.matmul(tf.linalg.inv(F+tf.eye(length)*0.001),Dj_array_col)
+            grads=beta*tf.matmul(tf.linalg.inv(F+tf.eye(length)*0.0001),Dj_array_col)
             grads=tf.reshape(grads,shape=(-1)).numpy()
             grads=self.KL_net.array2grads(self.KL_net.shapes,grads)
             optimizer.apply_gradients(zip(grads, self.trainable_weights))

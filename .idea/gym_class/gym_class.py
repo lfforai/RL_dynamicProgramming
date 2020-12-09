@@ -57,7 +57,7 @@ class gym_CartPole_v0:
         else:
             return self.action_class.important_action(state) #return [action,probility]
 
-    def sample_run(self,sample_num=1000,pitch_len=20,rdaction=True):#由于actor计算Pi（at|st）
+    def sample_run(self,sample_num=1000,pitch_len=5,rdaction=True):#由于actor计算Pi（at|st）
        self.random_action=rdaction
        print("gym_CartPole_v0 samlpe start!")
        self.sample=[]#由于不可使用历史样本，每次必须清空
