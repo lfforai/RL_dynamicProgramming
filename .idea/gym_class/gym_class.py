@@ -57,15 +57,16 @@ class gym_CartPole_v0:
         else:
             return self.action_class.important_action(state) #return [action,probility]
 
-    def sample_run(self,sample_num=1000,rdaction=True):#由于actor计算Pi（at|st）
-        self.random_action=rdaction
-        print("gym_CartPole_v0 samlpe start!")
-        self.sample=[]#由于不可使用历史样本，每次必须清空
-        d=0
-        while d<sample_num:
+    def sample_run(self,sample_num=1000,pitch_len=3,rdaction=True):#由于actor计算Pi（at|st）
+       self.random_action=rdaction
+       print("gym_CartPole_v0 samlpe start!")
+       self.sample=[]#由于不可使用历史样本，每次必须清空
+       d=0
+       while d<sample_num:
             state_now = self.env.reset()
             sum_loss=0
             t=0
+            temp_list=[]
             while True:
                 self.env.render()
                 action_now=self.action(state_now)
@@ -74,30 +75,117 @@ class gym_CartPole_v0:
                 r1 = (self.env.x_threshold - abs(x))/self.env.x_threshold - 0.8
                 r2 = (self.env.theta_threshold_radians - abs(theta))/self.env.theta_threshold_radians - 0.5
                 reward = r1 + r2
+                length_sample=len(self.sample)
+                length=len(temp_list)
                 if  done:
-                    if d<sample_num:
-                        d=d+1
-                        self.sample.append((state_now,state_next,reward,action_now,t,-1))
+                    if (length+length_sample)<sample_num:
+                        #self.sample.append((state_now[0],state_next:1,reward:2,action_now:3,t:4,-1:5,t_next:6))
                         sum_loss+=reward
+                        temp_list.append((state_now,state_next,reward,action_now,t,-1))
+                        length=len(temp_list)
+
+                        if length<=pitch_len:
+                           reward_temp=0
+                           ifdone=-1
+                           for i  in range(length):
+                               reward_temp=temp_list[length-1-i][2]+self.r*reward_temp
+                               self.sample.append([temp_list[length-1-i][0],temp_list[length-1-i][1],reward_temp
+                                                   ,temp_list[length-1-i][3],temp_list[length-1-i][4],ifdone,0])
+                               d=d+1
+                        else: #length>=10
+                           reward_temp=0
+                           ifdone=-1
+                           for i  in range(pitch_len):
+                                reward_temp=temp_list[length-1-i][2]+self.r*reward_temp
+                                self.sample.append([temp_list[length-1-i][0],temp_list[length-1-i][1],reward_temp
+                                                       ,temp_list[length-1-i][3],temp_list[length-1-i][4],ifdone,0])
+                                d=d+1
+
+                           ifdone=1
+                           for i in range(length-pitch_len):
+                               reward_temp=0
+                               for  j in range(pitch_len):
+                                    reward_temp=temp_list[i+j][2]*np.power(self.r,j)+reward_temp
+                               self.sample.append([temp_list[i][0],temp_list[i+j][1],reward_temp
+                                                       ,temp_list[i][3],temp_list[i][4],ifdone,temp_list[i][4]+j])
+                               d=d+1
                         t=t+1
                         if d%10==0:
                             print("actor sample total reward:",sum_loss)
-                        break
-                    else:
+                    else:#
+                        #self.sample.append((state_now[0],state_next:1,reward:2,action_now:3,t:4,-1:5,t_next:6))
+                        sum_loss+=reward
+                        temp_list.append((state_now,state_next,reward,action_now,t,-1))
+                        length=len(temp_list)
+
+                        if length<=pitch_len:
+                            reward_temp=0
+                            ifdone=-1
+                            for i  in range(length):
+                                reward_temp=temp_list[length-1-i][2]+self.r*reward_temp
+                                self.sample.append([temp_list[length-1-i][0],temp_list[length-1-i][1],reward_temp
+                                                       ,temp_list[length-1-i][3],temp_list[length-1-i][4],ifdone,0])
+                                d=d+1
+                        else: #length>=10
+                            reward_temp=0
+                            ifdone=-1
+                            for i  in range(pitch_len):
+                                reward_temp=temp_list[length-1-i][2]+self.r*reward_temp
+                                self.sample.append([temp_list[length-1-i][0],temp_list[length-1-i][1],reward_temp
+                                                       ,temp_list[length-1-i][3],temp_list[length-1-i][4],ifdone,0])
+                                d=d+1
+
+                            ifdone=1
+                            for i in range(length-pitch_len):
+                                reward_temp=0
+                                for  j in range(pitch_len):
+                                    reward_temp=temp_list[i+j][2]*np.power(self.r,j)+reward_temp
+                                self.sample.append([temp_list[i][0],temp_list[i+j][1],reward_temp
+                                                       ,temp_list[i][3],temp_list[i][4],ifdone,temp_list[i][4]+j])
+                                d=d+1
+                        t=t+1
+                        if d%10==0:
+                            print("actor sample total reward:",sum_loss)
                         print(" total num sample:", len(self.sample))
                         return 0
-                else:
-                    if d<sample_num:
+                    break
+                else:#not done
+                    if  (length_sample+length)<sample_num:
                         #e[0]当前s，e[1]跳转s,e[2]reward，e[3]当前action,e[4]t折扣期,e[5]done
-                        self.sample.append((state_now,state_next,reward,action_now,t,1))
+                        # self.sample.append((state_now,state_next,reward,action_now,t,1))
+                        temp_list.append((state_now,state_next,reward,action_now,t,-1))
                         sum_loss+=reward
                         state_now=state_next
                         t=t+1
                     else:
+                        if length<=pitch_len:
+                            reward_temp=0
+                            ifdone=1
+                            for i  in range(length):
+                                reward_temp=temp_list[length-1-i][2]+self.r*reward_temp
+                                self.sample.append([temp_list[length-1-i][0],temp_list[length-1][1],reward_temp
+                                                       ,temp_list[length-1-i][3],temp_list[length-1-i][4],ifdone,length-1])
+                                d=d+1
+                        else: #length>=10
+                            reward_temp=0
+                            ifdone=1
+                            for i  in range(pitch_len):
+                                reward_temp=temp_list[length-1-i][2]+self.r*reward_temp
+                                self.sample.append([temp_list[length-1-i][0],temp_list[length-1][1],reward_temp
+                                                       ,temp_list[length-1-i][3],temp_list[length-1-i][4],ifdone,length-1])
+                                d=d+1
+                            ifdone=1
+                            for i in range(length-pitch_len):
+                                reward_temp=0
+                                for  j in range(pitch_len):
+                                     reward_temp=temp_list[i+j][2]*np.power(self.r,j)+reward_temp
+                                self.sample.append([temp_list[i][0],temp_list[i+j][1],reward_temp
+                                                       ,temp_list[i][3],temp_list[i][4],ifdone,temp_list[i][4]+j])
+                                d=d+1
                         print(" total num sample:", len(self.sample))
                         return 0
-                    d=d+1
-        print(" total num sample:", len(self.sample))
+
+       print(" total num sample:", len(self.sample))
 
     def imsample_change_oreward(self): #old samples reward
         #e[0]当前s，e[1]跳转s,e[2]reward，e[3]当前action,e[4]done,e[5]:pro

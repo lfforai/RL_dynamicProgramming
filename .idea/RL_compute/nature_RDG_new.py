@@ -90,7 +90,7 @@ class actor(tf.keras.Model):
         self.training=training
         self.filename=filename
         self.KL_net=KL_net
-        self.e=0.000001
+        self.e=0.00000000001
         self.block_1 = Linear(name="actor_linear1",units=64,training=training)
         self.block_2 = Linear(name="actor_linear2",units=64,training=training)
         self.block_3 = Linear(name="actor_linear3",units=2,training=training)
@@ -123,7 +123,7 @@ class actor(tf.keras.Model):
             F=self.KL_net.F
 
             #compute Dj
-            optimizer = tf.keras.optimizers.SGD(learning_rate=-1.0)
+
             with tf.GradientTape() as tape:
                  logits = self(x_train, training=True)
                  loss_value = actor_loss(y_true, logits)
@@ -135,9 +135,10 @@ class actor(tf.keras.Model):
 
             beta=np.sqrt(2*self.e/tf.matmul(tf.matmul(Dj_array_T,F),Dj_array_col).numpy()[0])
             print("a::",beta)
+            optimizer = tf.keras.optimizers.SGD(learning_rate=-1.0*beta[0])
             # print(tf.eye(length))
-            beta=0.0015
-            grads=beta*tf.matmul(tf.linalg.inv(F+tf.eye(length)*0.01),Dj_array_col)
+            # beta=0.0015
+            grads=beta*tf.matmul(tf.linalg.inv(F+tf.eye(length)*0.001),Dj_array_col)
             grads=tf.reshape(grads,shape=(-1)).numpy()
             grads=self.KL_net.array2grads(self.KL_net.shapes,grads)
             optimizer.apply_gradients(zip(grads, self.trainable_weights))
@@ -195,9 +196,9 @@ class natrue_DGR:
     def train_actor(self,x,y,a,size):
         self.actor_net.train(x,y,a,size,epochs=5)
 
-    def train_all(self,bitch_size=250,N=10000):
+    def train_all(self,bitch_size=250,N=10000,sample_num=300):
         for g in range(N):
-            self.car_gym.sample_run(sample_num=300)
+            self.car_gym.sample_run(sample_num=sample_num)
             sample=self.car_gym.sample
             random.shuffle(sample)
             sample_bitch=sample[:bitch_size]  #bitch_size
@@ -209,12 +210,14 @@ class natrue_DGR:
             reward=[e[2] for e in sample_bitch]
             done=[e[5] for e in  sample_bitch]
             time=[e[4] for e in sample_bitch]  #r^t
+            time_next=[e[6] for e in sample_bitch]  #r^t
+            action=[e[3] for e in sample_bitch]
             # x=self.state_action_togethor(state,action)  #[[a1,a2,a3,a4],zeros]
             Q_snext_a=self.critic_net(np.array(state_next)).numpy()
             y=[]
             for i in range(bitch_size):
                 if done[i]!=-1:
-                   y.append(reward[i]+self.r*Q_snext_a[i][0])
+                   y.append(reward[i]+np.power(self.r,time_next[i]-time[i])*Q_snext_a[i][0])
                 else:
                    y.append(reward[i])
             y=np.array(y)
@@ -222,7 +225,7 @@ class natrue_DGR:
             self.train_critic(x,y,bitch_size)
 
             #train p(at|st)
-            self.car_gym.sample_run(sample_num=400)
+            self.car_gym.sample_run(sample_num=sample_num)
             sample=self.car_gym.sample
             random.shuffle(sample)
             sample_bitch=sample[:bitch_size]  #bitch_size
@@ -233,6 +236,7 @@ class natrue_DGR:
             done=[e[5] for e in  sample_bitch]
             time=[e[4] for e in sample_bitch]  #r^t
             action=[e[3] for e in sample_bitch]
+            time_next=[e[6] for e in sample_bitch]  #r^t
 
             Q_snext_a=self.critic_net(np.array(state_next)).numpy()
             Q_s_a=self.critic_net(np.array(state_now)).numpy()
@@ -241,10 +245,10 @@ class natrue_DGR:
             for i in range(bitch_size):
                   if done[i]!=-1:
                         if action[i]==0:
-                           y.append([np.power(self.r,time[i])*(reward[i]+self.r*Q_snext_a[i][0]-Q_s_a[i][0]),0.0])
+                           y.append([np.power(self.r,time[i])*(reward[i]+np.power(self.r,time_next[i]-time[i])*Q_snext_a[i][0]-Q_s_a[i][0]),0.0])
                            KL_action.append([1.0,0.0])
                         else:
-                           y.append([0.0,np.power(self.r,time[i])*(reward[i]+self.r*Q_snext_a[i][0]-Q_s_a[i][0])])
+                           y.append([0.0,np.power(self.r,time[i])*(reward[i]+np.power(self.r,time_next[i]-time[i])*Q_snext_a[i][0]-Q_s_a[i][0])])
                            KL_action.append([0.0,1.0])
                   else:
                         if action[i]==1:
