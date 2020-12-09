@@ -40,7 +40,7 @@ class gym_CartPole_v0:
         #初始化网络
         self.action_class=action_class
         self.random_action=randomaction
-        self.r=0.9
+        self.r=0.8
 
     def action(self,state):
         # if self.random_action==True:
@@ -57,7 +57,7 @@ class gym_CartPole_v0:
         else:
             return self.action_class.important_action(state) #return [action,probility]
 
-    def sample_run(self,sample_num=1000,pitch_len=3,rdaction=True):#由于actor计算Pi（at|st）
+    def sample_run(self,sample_num=1000,pitch_len=20,rdaction=True):#由于actor计算Pi（at|st）
        self.random_action=rdaction
        print("gym_CartPole_v0 samlpe start!")
        self.sample=[]#由于不可使用历史样本，每次必须清空
@@ -80,7 +80,8 @@ class gym_CartPole_v0:
                 if  done:
                     if (length+length_sample)<sample_num:
                         #self.sample.append((state_now[0],state_next:1,reward:2,action_now:3,t:4,-1:5,t_next:6))
-                        sum_loss+=reward
+                        sum_loss+=reward-2.0
+                        reward=reward-2.0
                         temp_list.append((state_now,state_next,reward,action_now,t,-1))
                         length=len(temp_list)
 
@@ -92,6 +93,9 @@ class gym_CartPole_v0:
                                self.sample.append([temp_list[length-1-i][0],temp_list[length-1-i][1],reward_temp
                                                    ,temp_list[length-1-i][3],temp_list[length-1-i][4],ifdone,0])
                                d=d+1
+                               # print([temp_list[length-1-i][0],temp_list[length-1-i][1],reward_temp
+                               #           ,temp_list[length-1-i][3],temp_list[length-1-i][4],ifdone,0])
+                           # print("-----------****----------")
                         else: #length>=10
                            reward_temp=0
                            ifdone=-1
@@ -100,7 +104,8 @@ class gym_CartPole_v0:
                                 self.sample.append([temp_list[length-1-i][0],temp_list[length-1-i][1],reward_temp
                                                        ,temp_list[length-1-i][3],temp_list[length-1-i][4],ifdone,0])
                                 d=d+1
-
+                                # print([temp_list[length-1-i][0],temp_list[length-1-i][1],reward_temp
+                                #           ,temp_list[length-1-i][3],temp_list[length-1-i][4],ifdone,0])
                            ifdone=1
                            for i in range(length-pitch_len):
                                reward_temp=0
@@ -108,13 +113,18 @@ class gym_CartPole_v0:
                                     reward_temp=temp_list[i+j][2]*np.power(self.r,j)+reward_temp
                                self.sample.append([temp_list[i][0],temp_list[i+j][1],reward_temp
                                                        ,temp_list[i][3],temp_list[i][4],ifdone,temp_list[i][4]+j])
+                               # print([temp_list[i][0],temp_list[i+j][1],reward_temp
+                               #           ,temp_list[i][3],temp_list[i][4],ifdone,temp_list[i][4]+j])
                                d=d+1
+                           # print("-------------------------")
                         t=t+1
                         if d%10==0:
                             print("actor sample total reward:",sum_loss)
                     else:#
+                        print("lest")
                         #self.sample.append((state_now[0],state_next:1,reward:2,action_now:3,t:4,-1:5,t_next:6))
-                        sum_loss+=reward
+                        sum_loss+=reward-2.0
+                        reward=reward-2.0
                         temp_list.append((state_now,state_next,reward,action_now,t,-1))
                         length=len(temp_list)
 
@@ -126,6 +136,9 @@ class gym_CartPole_v0:
                                 self.sample.append([temp_list[length-1-i][0],temp_list[length-1-i][1],reward_temp
                                                        ,temp_list[length-1-i][3],temp_list[length-1-i][4],ifdone,0])
                                 d=d+1
+                                # print([temp_list[length-1-i][0],temp_list[length-1-i][1],reward_temp
+                                #           ,temp_list[length-1-i][3],temp_list[length-1-i][4],ifdone,0])
+                            # print("-----------****----------")
                         else: #length>=10
                             reward_temp=0
                             ifdone=-1
@@ -134,7 +147,8 @@ class gym_CartPole_v0:
                                 self.sample.append([temp_list[length-1-i][0],temp_list[length-1-i][1],reward_temp
                                                        ,temp_list[length-1-i][3],temp_list[length-1-i][4],ifdone,0])
                                 d=d+1
-
+                                print([temp_list[length-1-i][0],temp_list[length-1-i][1],reward_temp
+                                           ,temp_list[length-1-i][3],temp_list[length-1-i][4],ifdone,0])
                             ifdone=1
                             for i in range(length-pitch_len):
                                 reward_temp=0
@@ -142,7 +156,10 @@ class gym_CartPole_v0:
                                     reward_temp=temp_list[i+j][2]*np.power(self.r,j)+reward_temp
                                 self.sample.append([temp_list[i][0],temp_list[i+j][1],reward_temp
                                                        ,temp_list[i][3],temp_list[i][4],ifdone,temp_list[i][4]+j])
+                                # print([temp_list[i][0],temp_list[i+j][1],reward_temp
+                                #            ,temp_list[i][3],temp_list[i][4],ifdone,temp_list[i][4]+j])
                                 d=d+1
+                                # print("-------------------------")
                         t=t+1
                         if d%10==0:
                             print("actor sample total reward:",sum_loss)
@@ -169,10 +186,13 @@ class gym_CartPole_v0:
                         else: #length>=10
                             reward_temp=0
                             ifdone=1
+                            # print("----------------start------------------")
                             for i  in range(pitch_len):
                                 reward_temp=temp_list[length-1-i][2]+self.r*reward_temp
                                 self.sample.append([temp_list[length-1-i][0],temp_list[length-1][1],reward_temp
                                                        ,temp_list[length-1-i][3],temp_list[length-1-i][4],ifdone,length-1])
+                                # print([temp_list[length-1-i][0],temp_list[length-1][1],reward_temp
+                                #           ,temp_list[length-1-i][3],temp_list[length-1-i][4],ifdone,length-1])
                                 d=d+1
                             ifdone=1
                             for i in range(length-pitch_len):
@@ -181,7 +201,10 @@ class gym_CartPole_v0:
                                      reward_temp=temp_list[i+j][2]*np.power(self.r,j)+reward_temp
                                 self.sample.append([temp_list[i][0],temp_list[i+j][1],reward_temp
                                                        ,temp_list[i][3],temp_list[i][4],ifdone,temp_list[i][4]+j])
+                                # print([temp_list[i][0],temp_list[i+j][1],reward_temp
+                                # ,temp_list[i][3],temp_list[i][4],ifdone,temp_list[i][4]+j])
                                 d=d+1
+                            # print("------------------end----------------")
                         print(" total num sample:", len(self.sample))
                         return 0
 

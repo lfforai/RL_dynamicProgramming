@@ -90,7 +90,7 @@ class actor(tf.keras.Model):
         self.training=training
         self.filename=filename
         self.KL_net=KL_net
-        self.e=0.00000000001
+        self.e=0.00000001
         self.block_1 = Linear(name="actor_linear1",units=64,training=training)
         self.block_2 = Linear(name="actor_linear2",units=64,training=training)
         self.block_3 = Linear(name="actor_linear3",units=2,training=training)
@@ -135,9 +135,9 @@ class actor(tf.keras.Model):
 
             beta=np.sqrt(2*self.e/tf.matmul(tf.matmul(Dj_array_T,F),Dj_array_col).numpy()[0])
             print("a::",beta)
-            optimizer = tf.keras.optimizers.SGD(learning_rate=-1.0*beta[0])
             # print(tf.eye(length))
-            # beta=0.0015
+            beta=0.001
+            optimizer = tf.keras.optimizers.SGD(learning_rate=-1.0*beta)
             grads=beta*tf.matmul(tf.linalg.inv(F+tf.eye(length)*0.001),Dj_array_col)
             grads=tf.reshape(grads,shape=(-1)).numpy()
             grads=self.KL_net.array2grads(self.KL_net.shapes,grads)
@@ -160,7 +160,7 @@ class natrue_DGR:
         self.critic_net=critic(filename=filepath_c)  #计算V（s）
         self.car_gym=car_o=gym_CartPole_v0(action_class=self,randomaction=False)   #catch sample
         self.env=gym.make("CartPole-v1") #
-        self.r=0.9
+        self.r=0.8
         if not os.path.exists(self.filepath_c) or not os.path.exists(self.filepath_a):
             print("no 参数")
         else:
@@ -196,7 +196,7 @@ class natrue_DGR:
     def train_actor(self,x,y,a,size):
         self.actor_net.train(x,y,a,size,epochs=5)
 
-    def train_all(self,bitch_size=250,N=10000,sample_num=300):
+    def train_all(self,bitch_size=500,N=10000,sample_num=600):
         for g in range(N):
             self.car_gym.sample_run(sample_num=sample_num)
             sample=self.car_gym.sample
