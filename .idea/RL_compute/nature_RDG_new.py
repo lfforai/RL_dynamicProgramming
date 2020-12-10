@@ -90,9 +90,9 @@ class actor(tf.keras.Model):
         self.training=training
         self.filename=filename
         self.KL_net=KL_net
-        self.e=0.0000000001
-        self.block_1 = Linear(name="actor_linear1",units=64,training=training)
-        self.block_2 = Linear(name="actor_linear2",units=64,training=training)
+        self.e=0.00000000001
+        self.block_1 = Linear(name="actor_linear1",units=32,training=training)
+        self.block_2 = Linear(name="actor_linear2",units=32,training=training)
         self.block_3 = Linear(name="actor_linear3",units=2,training=training)
         import os.path
         if os.path.isdir(filename):
@@ -130,12 +130,11 @@ class actor(tf.keras.Model):
             Dj_array=self.KL_net.grads2array(Dj)
             Dj_array_col=tf.reshape(Dj_array,shape=(-1,1))
             Dj_array_T=tf.reshape(Dj_array,shape=(1,-1))
-            length=len(self.KL_net.grads_array)
+            length=len(self.KL_net.grads_array[0])
 
-            beta=np.sqrt(2*self.e/tf.matmul(tf.matmul(Dj_array_T,F),Dj_array_col).numpy()[0])
+            beta=np.sqrt(2*self.e/tf.matmul(tf.matmul(Dj_array_T,F),Dj_array_col).numpy()[0])[0]
             print("a::",beta)
-            # print(tf.eye(length))
-            beta=0.01
+            beta=0.002
             optimizer = tf.keras.optimizers.SGD(learning_rate=-1.0*beta)
             grads=beta*tf.matmul(tf.linalg.inv(F+tf.eye(length)*0.0001),Dj_array_col)
             grads=tf.reshape(grads,shape=(-1)).numpy()
@@ -195,7 +194,7 @@ class natrue_DGR:
     def train_actor(self,x,y,a,size):
         self.actor_net.train(x,y,a,size,epochs=5)
 
-    def train_all(self,bitch_size=500,N=10000,sample_num=600):
+    def train_all(self,bitch_size=300,N=10000,sample_num=350):
         for g in range(N):
             self.car_gym.sample_run(sample_num=sample_num)
             sample=self.car_gym.sample

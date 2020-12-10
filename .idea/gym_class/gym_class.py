@@ -284,12 +284,12 @@ class KL_grad:
         self.shapes=[]
         self.grads_array=[]        #np.array
         self.F=[]
-        list_pra=[]
-        if len(self.grads_vector)>0:
-            for e in self.grads_vector:
-                list_pra.append(tf.reshape(e,shape=(-1)))
-                self.shapes.append(tuple(np.shape(e)))
-            self.grads_array=tf.concat(list_pra,axis=0)
+        # list_pra=[]
+        # if len(self.grads_vector)>0:
+        #     for e in self.grads_vector:
+        #         list_pra.append(tf.reshape(e,shape=(-1)))
+        #         self.shapes.append(tuple(np.shape(e)))
+        #     self.grads_array=tf.concat(list_pra,axis=0)
 
     def grads2array(self,grads_vector):
         list_pra=[]
@@ -302,25 +302,37 @@ class KL_grad:
 
     #expect=[dlog(p(a|s))*dlog(p(a|s))^T]
     def F_matrix(self): #fisher matrix
-        a_oT=tf.reshape(self.grads_array,shape=(-1,1))
-        a_o=tf.reshape(self.grads_array,shape=(1,-1))
-        self.F=tf.matmul(a_oT,a_o).numpy()
-
+        self.F=0
+        result=0
+        i=0
+        for e in self.grads_array:
+            a_oT=tf.reshape(e,shape=(-1,1))
+            a_o=tf.reshape(e,shape=(1,-1))
+            i=i+1
+        result=tf.matmul(a_oT,a_o)+result
+        self.F=tf.constant(result.numpy()/i,dtype=tf.float32)
 
     def modle_grads(self,loss_fn,y_batch_train,x_batch_train,model=keras.Model):
-        # print(y_batch_train)
-        # print(x_batch_train)
-        with tf.GradientTape() as tape:
-            logits = model(x_batch_train, training=True)
-            loss_value =  loss_fn(y_batch_train, logits)
-        # print(model.trainable_weights)
-        self.grads_vector=tape.gradient(loss_value, model.trainable_weights)
-        self.shapes=[]
-        list_pra=[]
-        for e in self.grads_vector:
-            list_pra.append(tf.reshape(e,shape=(-1)))
-            self.shapes.append(tuple(np.shape(e)))
-        self.grads_array=tf.concat(list_pra,axis=0)
+        yshape=tf.shape(y_batch_train)
+        xshape=tf.shape(x_batch_train)
+        ylen=yshape[0]
+        xlen=xshape[0]
+        for  i  in range(ylen):
+            ytemp=tf.reshape(y_batch_train[i,:],shape=(1,-1))
+            xtemp=tf.reshape(x_batch_train[i,:],shape=(1,-1))
+            with tf.GradientTape() as tape:
+                logits = model(x_batch_train, training=True)
+                loss_value =  loss_fn(y_batch_train, logits)
+            self.grads_vector=tape.gradient(target=loss_value,sources=model.trainable_weights)
+            if i==0:
+               self.shapes=[]
+            list_pra=[]
+            for e in self.grads_vector:
+                list_pra.append(tf.reshape(e,shape=(-1)))
+                if i==0:
+                   self.shapes.append(tuple(np.shape(e)))
+            self.grads_array.append(tf.concat(list_pra,axis=0))
+
 
     #convert array to vector
     def array2grads(self,list_shape=[],grads_array=[]):
