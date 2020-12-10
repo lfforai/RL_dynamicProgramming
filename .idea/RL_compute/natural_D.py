@@ -149,7 +149,7 @@ class natural_gradient():
          self.N_critic_batch=200
          self.N_actor_batch=200#梯度下降的batchsize
          self.r=0.90#折扣系数
-         self.threshold=0.001#计算自然梯度的阙值 ,自适应梯度0.001，自然梯度0.00001
+         self.threshold=0.00001#计算自然梯度的阙值 ,自适应梯度0.001，自然梯度0.00001
          self.optimizer = tf.keras.optimizers.SGD(learning_rate=1.0)#更新梯度优化器
          self.record_shape=[] #记录每个weight的shape 用于还原
          self.record_len=[]   #记录每个weight的长度  用于还原
@@ -354,7 +354,7 @@ class natural_gradient():
              # Dw=deta*DJ_col #自适应参数2
 
              print("deta:",deta)
-             self.w1_action_lr=np.reshape(Dw.numpy(),(-1))+self.w1_action_lr
+             self.w1_action_lr=np.reshape(Dw,(-1))+self.w1_action_lr
          np.savetxt('./w1_action_lr.txt',self.w1_action_lr, delimiter=',')  # 数组x
          # print(self.w1_action_lr)
 

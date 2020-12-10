@@ -94,7 +94,7 @@ class actor(tf.keras.Model):
         self.training=training
         self.filename=filename
         self.KL_net=KL_net
-        self.e=0.0000000001
+        self.e=0.00000000000005
         self.block_1 = Linear(name="actor_linear1",units=64,training=training)
         self.block_2 = Linear(name="actor_linear2",units=64,training=training)
         self.block_3 = Linear(name="actor_linear3",units=2,training=training)
@@ -119,6 +119,7 @@ class actor(tf.keras.Model):
         return x
 
     def train(self,x_train,y_true,action_KL,size,epochs=1):
+        optimizer = tf.keras.optimizers.SGD(learning_rate=-1.0)
         for  b in range(epochs):
             #compute KL
             # self.call(x_train)
@@ -138,13 +139,12 @@ class actor(tf.keras.Model):
 
             beta=np.sqrt(2*self.e/tf.matmul(tf.matmul(Dj_array_T,F),Dj_array_col).numpy()[0])[0]
             print("a::",beta)
-            # print(tf.eye(length))
-            # beta=0.01
-            optimizer = tf.keras.optimizers.SGD(learning_rate=-1.0*beta)
-            grads=beta*tf.matmul(tf.linalg.inv(F+tf.eye(length)*0.00001),Dj_array_col)
+            # beta=0.0001
+            grads=beta*tf.matmul(tf.linalg.inv(F+tf.eye(length)*0.000001),Dj_array_col)
             grads=tf.reshape(grads,shape=(-1)).numpy()
             grads=self.KL_net.array2grads(self.KL_net.shapes,grads)
             optimizer.apply_gradients(zip(grads, self.trainable_weights))
+
         print(tf.reduce_sum(self.trainable_weights[0])+tf.reduce_sum(self.trainable_weights[1])+
               tf.reduce_sum(self.trainable_weights[2])+tf.reduce_sum(self.trainable_weights[3])+
               tf.reduce_sum(self.trainable_weights[4])+tf.reduce_sum(self.trainable_weights[5]))
@@ -163,7 +163,7 @@ class natrue_DGR:
         self.critic_net=critic(filename=filepath_c)  #计算V（s）
         self.car_gym=car_o=gym_CartPole_v0(action_class=self,randomaction=False)   #catch sample
         self.env=gym.make("CartPole-v1") #
-        self.r=0.8
+        self.r=0.90
         if not os.path.exists(self.filepath_c) or not os.path.exists(self.filepath_a):
             print("no 参数")
         else:
@@ -199,9 +199,9 @@ class natrue_DGR:
     def train_actor(self,x,y,a,size,epochs):
         self.actor_net.train(x,y,a,size,epochs)
 
-    def train_all(self,c_bitch_size=300,a_bitch_size=300,N=10000,c_sample_num=400,a_sample_num=500):
+    def train_all(self,c_bitch_size=200,a_bitch_size=200,N=10000,c_sample_num=220,a_sample_num=220):
         for g in range(N):
-            self.car_gym.sample_run(sample_num=c_sample_num)
+            self.car_gym.sample_run(sample_num=c_sample_num,pitch_len=8)
             sample=self.car_gym.sample
             random.shuffle(sample)
             c_sample_bitch=sample[:c_bitch_size]  #bitch_size
@@ -225,21 +225,21 @@ class natrue_DGR:
                    y.append(reward[i])
             y=np.array(y)
             x=np.array(state_now)
-            self.train_critic(x,y,c_bitch_size,2)
+            self.train_critic(x,y,c_bitch_size,5)
 
             #train p(at|st)
-            self.car_gym.sample_run(sample_num=a_sample_num)
-            sample=self.car_gym.sample
-            random.shuffle(sample)
-            a_sample_bitch=sample[:a_bitch_size]  #bitch_size
+            # self.car_gym.sample_run(sample_num=a_sample_num,pitch_len=8)
+            # sample=self.car_gym.sample
+            # random.shuffle(sample)
+            # a_sample_bitch=sample[:a_bitch_size]  #bitch_size
 
-            state_next=[e[1] for e in a_sample_bitch]
-            state_now=[e[0] for e in a_sample_bitch]
-            reward=[e[2] for e in a_sample_bitch]
-            done=[e[5] for e in  a_sample_bitch]
-            time=[e[4] for e in a_sample_bitch]  #r^t
-            action=[e[3] for e in a_sample_bitch]
-            time_next=[e[6] for e in a_sample_bitch]  #r^t
+            # state_next=[e[1] for e in a_sample_bitch]
+            # state_now=[e[0] for e in a_sample_bitch]
+            # reward=[e[2] for e in a_sample_bitch]
+            # done=[e[5] for e in  a_sample_bitch]
+            # time=[e[4] for e in a_sample_bitch]  #r^t
+            # action=[e[3] for e in a_sample_bitch]
+            # time_next=[e[6] for e in a_sample_bitch]  #r^t
 
             Q_snext_a=self.critic_net(np.array(state_next)).numpy()
             Q_s_a=self.critic_net(np.array(state_now)).numpy()

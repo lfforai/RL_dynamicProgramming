@@ -40,7 +40,7 @@ class gym_CartPole_v0:
         #初始化网络
         self.action_class=action_class
         self.random_action=randomaction
-        self.r=0.85
+        self.r=0.9
 
     def action(self,state):
         # if self.random_action==True:
@@ -80,8 +80,8 @@ class gym_CartPole_v0:
                 if  done:
                     if (length+length_sample)<sample_num:
                         #self.sample.append((state_now[0],state_next:1,reward:2,action_now:3,t:4,-1:5,t_next:6))
-                        sum_loss+=reward-2.0
-                        reward=reward-2.0
+                        sum_loss+=reward
+                        reward=reward
                         temp_list.append((state_now,state_next,reward,action_now,t,-1))
                         length=len(temp_list)
 
@@ -123,8 +123,8 @@ class gym_CartPole_v0:
                     else:#
                         print("lest")
                         #self.sample.append((state_now[0],state_next:1,reward:2,action_now:3,t:4,-1:5,t_next:6))
-                        sum_loss+=reward-2.0
-                        reward=reward-2.0
+                        sum_loss+=reward
+                        reward=reward
                         temp_list.append((state_now,state_next,reward,action_now,t,-1))
                         length=len(temp_list)
 
@@ -161,7 +161,7 @@ class gym_CartPole_v0:
                                 d=d+1
                                 # print("-------------------------")
                         t=t+1
-                        if d%10==0:
+                        if d%5==0:
                             print("actor sample total reward:",sum_loss)
                         print(" total num sample:", len(self.sample))
                         return 0
@@ -352,9 +352,9 @@ class KL_grad:
         return rezult
 
 #test for KL
-from tensorflow.keras import backend as K
-def actor_loss(y_true, y_pred):
-    return tf.reduce_sum(tf.multiply(y_true,tf.math.log(y_pred)),axis=1)
+# from tensorflow.keras import backend as K
+# def actor_loss(y_true, y_pred):
+#     return tf.reduce_sum(tf.multiply(y_true,tf.math.log(y_pred)),axis=1)
 
 # inputs = keras.Input(shape=(10,), name="digits")
 # x = layers.Dense(4, activation="relu", name="dense_1")(inputs)
