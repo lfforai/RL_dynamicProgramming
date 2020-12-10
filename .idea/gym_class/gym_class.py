@@ -40,7 +40,7 @@ class gym_CartPole_v0:
         #初始化网络
         self.action_class=action_class
         self.random_action=randomaction
-        self.r=0.8
+        self.r=0.85
 
     def action(self,state):
         # if self.random_action==True:
@@ -57,7 +57,7 @@ class gym_CartPole_v0:
         else:
             return self.action_class.important_action(state) #return [action,probility]
 
-    def sample_run(self,sample_num=1000,pitch_len=5,rdaction=True):#由于actor计算Pi（at|st）
+    def sample_run(self,sample_num=1000,pitch_len=3,rdaction=True):#由于actor计算Pi（at|st）
        self.random_action=rdaction
        print("gym_CartPole_v0 samlpe start!")
        self.sample=[]#由于不可使用历史样本，每次必须清空
@@ -304,13 +304,12 @@ class KL_grad:
     def F_matrix(self): #fisher matrix
         self.F=0
         result=0
-        i=0
+        length=len(self.grads_array)
         for e in self.grads_array:
             a_oT=tf.reshape(e,shape=(-1,1))
             a_o=tf.reshape(e,shape=(1,-1))
-            i=i+1
-        result=tf.matmul(a_oT,a_o)+result
-        self.F=tf.constant(result.numpy()/i,dtype=tf.float32)
+            result=tf.matmul(a_oT,a_o)+result
+        self.F=tf.constant(result.numpy()/length,dtype=tf.float32)
 
     def modle_grads(self,loss_fn,y_batch_train,x_batch_train,model=keras.Model):
         yshape=tf.shape(y_batch_train)

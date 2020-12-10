@@ -41,7 +41,9 @@ class critic(tf.keras.Model):
         self.filename=filename
         self.block_1 = Linear(name="critic_linear1",units=64,training=training)
         self.block_2 = Linear(name="critic_linear2",units=64,training=training)
-        self.block_3 = Linear(name="critic_linear3",units=1,training=training)
+        self.block_3 = Linear(name="critic_linear2",units=64,training=training)
+        self.block_4 = Linear(name="critic_linear3",units=1,training=training)
+
         import os.path
         if os.path.isdir(filename):
             if os.listdir(filename):
@@ -63,12 +65,14 @@ class critic(tf.keras.Model):
         x = self.block_2(x)
         x = tf.nn.relu(x)
         x = self.block_3(x)
+        x = tf.nn.relu(x)
+        x = self.block_4(x)
         return x
 
-    def train(self,x_train,y_ture,size):
+    def train(self,x_train,y_ture,size,epochs):
         optimizer = tf.keras.optimizers.Adam(learning_rate=1.5e-3)
         self.compile(optimizer, loss=tf.keras.losses.MeanSquaredError())
-        self.fit(x_train, y_ture, epochs=5,batch_size=size,verbose=1)
+        self.fit(x_train, y_ture, epochs=epochs,batch_size=size,verbose=0)
         self.save_weights(self.filename+"/prameter")
 
     def get_config(self):
@@ -90,9 +94,9 @@ class actor(tf.keras.Model):
         self.training=training
         self.filename=filename
         self.KL_net=KL_net
-        self.e=0.00000000001
-        self.block_1 = Linear(name="actor_linear1",units=32,training=training)
-        self.block_2 = Linear(name="actor_linear2",units=32,training=training)
+        self.e=0.0000000001
+        self.block_1 = Linear(name="actor_linear1",units=64,training=training)
+        self.block_2 = Linear(name="actor_linear2",units=64,training=training)
         self.block_3 = Linear(name="actor_linear3",units=2,training=training)
         import os.path
         if os.path.isdir(filename):
@@ -114,7 +118,7 @@ class actor(tf.keras.Model):
         x=tf.nn.softmax(x)
         return x
 
-    def train(self,x_train,y_true,action_KL,size,epochs=5):
+    def train(self,x_train,y_true,action_KL,size,epochs=1):
         for  b in range(epochs):
             #compute KL
             # self.call(x_train)
@@ -134,9 +138,10 @@ class actor(tf.keras.Model):
 
             beta=np.sqrt(2*self.e/tf.matmul(tf.matmul(Dj_array_T,F),Dj_array_col).numpy()[0])[0]
             print("a::",beta)
-            beta=0.002
+            # print(tf.eye(length))
+            # beta=0.01
             optimizer = tf.keras.optimizers.SGD(learning_rate=-1.0*beta)
-            grads=beta*tf.matmul(tf.linalg.inv(F+tf.eye(length)*0.0001),Dj_array_col)
+            grads=beta*tf.matmul(tf.linalg.inv(F+tf.eye(length)*0.00001),Dj_array_col)
             grads=tf.reshape(grads,shape=(-1)).numpy()
             grads=self.KL_net.array2grads(self.KL_net.shapes,grads)
             optimizer.apply_gradients(zip(grads, self.trainable_weights))
@@ -188,59 +193,59 @@ class natrue_DGR:
                 temp.append(tf.concat([tf.zeros(state_length),value],-1))
         return tf.reshape(tf.concat(temp,0),shape=(-1,action_len*state_length))
 
-    def train_critic(self,x,y,size):
-        self.critic_net.train(x,y,size)
+    def train_critic(self,x,y,size,epochs):
+        self.critic_net.train(x,y,size,epochs)
 
-    def train_actor(self,x,y,a,size):
-        self.actor_net.train(x,y,a,size,epochs=5)
+    def train_actor(self,x,y,a,size,epochs):
+        self.actor_net.train(x,y,a,size,epochs)
 
-    def train_all(self,bitch_size=300,N=10000,sample_num=350):
+    def train_all(self,c_bitch_size=300,a_bitch_size=300,N=10000,c_sample_num=400,a_sample_num=500):
         for g in range(N):
-            self.car_gym.sample_run(sample_num=sample_num)
+            self.car_gym.sample_run(sample_num=c_sample_num)
             sample=self.car_gym.sample
             random.shuffle(sample)
-            sample_bitch=sample[:bitch_size]  #bitch_size
+            c_sample_bitch=sample[:c_bitch_size]  #bitch_size
 
             #e[0]当前s，e[1]跳转s,e[2]reward，e[3]当前action,e[4]t折扣期,e[5]done
             #train V(s)
-            state_next=[e[1] for e in sample_bitch]
-            state_now=[e[0] for e in sample_bitch]
-            reward=[e[2] for e in sample_bitch]
-            done=[e[5] for e in  sample_bitch]
-            time=[e[4] for e in sample_bitch]  #r^t
-            time_next=[e[6] for e in sample_bitch]  #r^t
-            action=[e[3] for e in sample_bitch]
+            state_next=[e[1] for e in c_sample_bitch]
+            state_now=[e[0] for e in c_sample_bitch]
+            reward=[e[2] for e in c_sample_bitch]
+            done=[e[5] for e in  c_sample_bitch]
+            time=[e[4] for e in c_sample_bitch]  #r^t
+            time_next=[e[6] for e in c_sample_bitch]  #r^t
+            action=[e[3] for e in c_sample_bitch]
             # x=self.state_action_togethor(state,action)  #[[a1,a2,a3,a4],zeros]
             Q_snext_a=self.critic_net(np.array(state_next)).numpy()
             y=[]
-            for i in range(bitch_size):
+            for i in range(c_bitch_size):
                 if done[i]!=-1:
                    y.append(reward[i]+np.power(self.r,time_next[i]-time[i])*Q_snext_a[i][0])
                 else:
                    y.append(reward[i])
             y=np.array(y)
             x=np.array(state_now)
-            self.train_critic(x,y,bitch_size)
+            self.train_critic(x,y,c_bitch_size,2)
 
             #train p(at|st)
-            self.car_gym.sample_run(sample_num=sample_num)
+            self.car_gym.sample_run(sample_num=a_sample_num)
             sample=self.car_gym.sample
             random.shuffle(sample)
-            sample_bitch=sample[:bitch_size]  #bitch_size
+            a_sample_bitch=sample[:a_bitch_size]  #bitch_size
 
-            state_next=[e[1] for e in sample_bitch]
-            state_now=[e[0] for e in sample_bitch]
-            reward=[e[2] for e in sample_bitch]
-            done=[e[5] for e in  sample_bitch]
-            time=[e[4] for e in sample_bitch]  #r^t
-            action=[e[3] for e in sample_bitch]
-            time_next=[e[6] for e in sample_bitch]  #r^t
+            state_next=[e[1] for e in a_sample_bitch]
+            state_now=[e[0] for e in a_sample_bitch]
+            reward=[e[2] for e in a_sample_bitch]
+            done=[e[5] for e in  a_sample_bitch]
+            time=[e[4] for e in a_sample_bitch]  #r^t
+            action=[e[3] for e in a_sample_bitch]
+            time_next=[e[6] for e in a_sample_bitch]  #r^t
 
             Q_snext_a=self.critic_net(np.array(state_next)).numpy()
             Q_s_a=self.critic_net(np.array(state_now)).numpy()
             y=[]
             KL_action=[]
-            for i in range(bitch_size):
+            for i in range(a_bitch_size):
                   if done[i]!=-1:
                         if action[i]==0:
                            y.append([np.power(self.r,time[i])*(reward[i]+np.power(self.r,time_next[i]-time[i])*Q_snext_a[i][0]-Q_s_a[i][0]),0.0])
@@ -257,7 +262,7 @@ class natrue_DGR:
                            KL_action.append([1.0,0.0])
             y=np.array(y)
             KL_action=np.array(KL_action,dtype=float)
-            self.train_actor(x,y,KL_action,bitch_size)
+            self.train_actor(x,y,KL_action,a_bitch_size,2)
 
 natrue=natrue_DGR()
 natrue.train_all()
