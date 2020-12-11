@@ -94,10 +94,11 @@ class actor(tf.keras.Model):
         self.training=training
         self.filename=filename
         self.KL_net=KL_net
-        self.e=0.00000000000005
-        self.block_1 = Linear(name="actor_linear1",units=64,training=training)
-        self.block_2 = Linear(name="actor_linear2",units=64,training=training)
-        self.block_3 = Linear(name="actor_linear3",units=2,training=training)
+        self.e=0.00000005
+        self.block_1 = Linear(name="actor_linear1",units=32,training=training)
+        self.block_2 = Linear(name="actor_linear2",units=32,training=training)
+        self.block_3 = Linear(name="actor_linear2",units=32,training=training)
+        self.block_4 = Linear(name="actor_linear3",units=2,training=training)
         import os.path
         if os.path.isdir(filename):
             if os.listdir(filename):
@@ -115,6 +116,8 @@ class actor(tf.keras.Model):
         x = self.block_2(x)
         x = tf.nn.relu(x)
         x = self.block_3(x)
+        x = tf.nn.relu(x)
+        x = self.block_4(x)
         x=tf.nn.softmax(x)
         return x
 
@@ -137,10 +140,12 @@ class actor(tf.keras.Model):
             Dj_array_T=tf.reshape(Dj_array,shape=(1,-1))
             length=len(self.KL_net.grads_array[0])
 
-            beta=np.sqrt(2*self.e/tf.matmul(tf.matmul(Dj_array_T,F),Dj_array_col).numpy()[0])[0]
+
+            F_inv=tf.linalg.inv(F+tf.eye(length)*0.000001)
+            beta=np.sqrt(2*self.e/tf.matmul(tf.matmul(Dj_array_T,F_inv),Dj_array_col).numpy()[0])[0]
             print("a::",beta)
             # beta=0.0001
-            grads=beta*tf.matmul(tf.linalg.inv(F+tf.eye(length)*0.000001),Dj_array_col)
+            grads=beta*tf.matmul(F_inv,Dj_array_col)
             grads=tf.reshape(grads,shape=(-1)).numpy()
             grads=self.KL_net.array2grads(self.KL_net.shapes,grads)
             optimizer.apply_gradients(zip(grads, self.trainable_weights))
@@ -199,9 +204,9 @@ class natrue_DGR:
     def train_actor(self,x,y,a,size,epochs):
         self.actor_net.train(x,y,a,size,epochs)
 
-    def train_all(self,c_bitch_size=200,a_bitch_size=200,N=10000,c_sample_num=220,a_sample_num=220):
+    def train_all(self,c_bitch_size=50,a_bitch_size=50,N=100000,c_sample_num=120,a_sample_num=120):
         for g in range(N):
-            self.car_gym.sample_run(sample_num=c_sample_num,pitch_len=8)
+            self.car_gym.sample_run(sample_num=c_sample_num,pitch_len=6)
             sample=self.car_gym.sample
             random.shuffle(sample)
             c_sample_bitch=sample[:c_bitch_size]  #bitch_size
@@ -262,7 +267,7 @@ class natrue_DGR:
                            KL_action.append([1.0,0.0])
             y=np.array(y)
             KL_action=np.array(KL_action,dtype=float)
-            self.train_actor(x,y,KL_action,a_bitch_size,2)
+            self.train_actor(x,y,KL_action,a_bitch_size,1)
 
 natrue=natrue_DGR()
 natrue.train_all()
