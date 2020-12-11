@@ -33,24 +33,35 @@ for gpu in gpus:
     tf.config.experimental.set_memory_growth(gpu, True)
 
 class LQR:
-    def __init__(self, name="LQR",Ct_vector=[],ct_vector=[],Ft=[],ft=[],**kwargs):
+    def __init__(self, name="LQR",Ct_vector=[],ct_vector=[],T=0,**kwargs):
         self.Ct=Ct_vector
         self.ct=ct_vector
-        self.Ft=np.array(Ft)
-        self.Ft_T=tf.transpose(self.Ft).numpy()
-        self.ft=np.array(ft)
+
+        self.A=0
+        self.B=0 #
+        self.Ft=0
+        self.Ft_T=0
+        self.ft=0
+        self.s_dim=0
+        self.a_dim=0
 
         self.t=0
-        self.T=0
-        self.Qt=[]
-        self.qt=[]
-        self.Kt=[]
-        self.kt=[]
-        self.Vt=[]
-        self.vt=[]
-        self.Vt_1=[]
-        self.vt_1=[]
-        self.V_xt=[]
+        self.T=T
+        self.Qt=0
+        self.qt=0
+        self.Kt=0
+        self.kt=0
+        self.Kt_vector=[]
+        self.kt_vector=[]
+
+        self.Vt=0
+        self.vt=0
+
+        self.Vt_1=0
+        self.vt_1=0
+
+        self.x_vector=[]
+        self.u_vector=[]
 
     def catch_sub_matrix(self,matrix,row_index,col_index,row_size,col_size):
         #Ct=np.matrix(tf.reshape(np.array(list(range(36))),shape=(6,6)))
@@ -61,21 +72,159 @@ class LQR:
         # print(lqr.catch_sub_matrix(Ct,4,4,2,2))
         return matrix[row_index:row_index+row_size,col_index:col_index+col_size]
 
-    def Kt_kt(self,Qt_ut_ut,Qt_ut_xt):
+    def Kt_kt(self,Qt_ut_ut,Qt_ut_xt,q_ut):
         Qt_ut_ut_inv=tf.linalg.inv(Qt_ut_ut)
         self.Kt=-1.0*tf.matmul(Qt_ut_ut_inv,Qt_ut_xt)
-        # self.kt=-1.0*tf.
+        self.kt=-1.0*tf.matmul(Qt_ut_ut_inv,q_ut)
 
-    def back_Kt(self,T,Ct=[],ct=[],Ft=[],ft=[],s_dim=4,a_dim=2):
-        for  t in range(T-1,-1,-1):
+    def Vt_vt(self,Kt,kt,Qt_xt_xt,Qt_xt_ut,Qt_ut_xt,Qt_ut_ut,q_xt,q_ut):
+        Kt_T=tf.transpose(Kt)
+        self.Vt=Qt_xt_xt+tf.matmul(Qt_xt_ut,Kt)+tf.matmul(Kt_T,Qt_ut_xt)+\
+                tf.matmul(tf.matmul(Kt_T,Qt_ut_ut),Kt)
+        self.vt=q_xt+tf.matmul(Qt_xt_ut,kt)+tf.matmul(Kt_T,q_ut)+tf.matmul(Kt_T,tf.matmul(Qt_ut_ut,kt))
+
+    def back_Kt(self):
+        s_dim=self.s_dim
+        a_dim=self.a_dim
+        for  t in range(self.T-1,-1,-1):
              if  t==T-1:
-                 self.Qt=np.matrix(Ct)
-                 self.qt=np.matrix(ct)
+                 self.Qt=np.matrix(Ct[t])
+                 self.qt=np.matrix(ct[t])
              else:
                  self.Qt=self.Ct[t]+tf.matmul(tf.matmul(self.Ft_T,self.Vt_1),self.Ft)
-                 self.qt=self.Ct[t]+tf.matmul(tf.matmul(self.Ft_T,self.Vt_1),self.ft)+tf.matmul(self.Ft_T,self.Vt_1)
+                 self.qt=self.ct[t]+tf.matmul(tf.matmul(self.Ft_T,self.Vt_1),self.ft)+tf.matmul(self.Ft_T,self.Vt_1)
 
+             Qt_xt_xt=self.catch_sub_matrix(self.Qt,0,0,s_dim,s_dim)
+             Qt_xt_ut=self.catch_sub_matrix(self.Qt,0,s_dim,s_dim,a_dim)
              Qt_ut_ut=self.catch_sub_matrix(self.Qt,s_dim,s_dim,a_dim,a_dim)
              Qt_ut_xt=self.catch_sub_matrix(self.Qt,s_dim,0,a_dim,s_dim)
+
+             q_ut=self.catch_sub_matrix(s_dim,0,a_dim,1)
+             q_xt=self.catch_sub_matrix(0,0,s_dim,1)
+
+             self.Kt_kt(Qt_ut_ut,Qt_ut_xt,q_ut)
+             self.Vt_vt(Kt,kt,Qt_xt_xt,Qt_xt_ut,Qt_ut_xt,Qt_ut_ut,q_xt)
+
+             self.Kt_vector.append(self.Kt)
+             self.kt_vector.append(self.kt)
+
+             self.Vt_1=self.Vt
+             self.vt_1=self.vt
+
+    def Ft_init(self,h=300.0,m=1400.0,s_dim=4,a_dim=2):
+        self.s_dim=s_dim
+        self.a_dim=a_dim
+        # m =car   kg
+        # h =time,5 minites
+        drag_ratio=(1.0/16.0)*3*0.45*15    #Fw=1/16*A*Cw*v^2 ,cw=0.45,A=3 m^2 ，v=15m/s
+        A_beta=1.0-h*drag_ratio/m
+        B_beta=h/m
+        # A=np.matrix([[1.0,0,h,0],[0,1.0,0,h],[0.0,0.0,A_beta,0],\
+        #    [0.0,0.0,0.0,A_beta]])
+        A=np.matrix([[1.0,0,h-drag_ratio*h*h/m/2.0,0],[0,1.0,0,h-drag_ratio*h*h/m/2.0],[0.0,0.0,A_beta,0], \
+                     [0.0,0.0,0.0,A_beta]])
+        self.A=A
+        B=np.matrix([[h*h/m/2.0,0],[0,h*h/m/2.0],[B_beta,0],[0,B_beta]])
+        self.B=B
+        # print(np.hstack((A,B)))
+        self.Ft=np.hstack((A,B))
+        self.Ft_T=tf.transpose(self.Ft)
+        self.ft=np.zeros((self.s_dim,1))
+        #xt=[x,y,vx,vy] ut=[xut,yut]
+
+    def f(self,xt,ut): #p(st+1|st,at)=1
+        return tf.matmul(self.A,xt)+tf.matmul(self.B,ut)
+
+    #nearest point path
+    def Ct_init(self,Ct_vector=[],ct_vector=[],T=100):
+        self.Ct=Ct_vector
+        self.ct=ct_vector
+        self.T=T
+        if len(self.Ct)!=self.T:
+           print("Ct length must be same as T")
+
+    #1、reach end of point with lessest force
+    def Ct_init_end_point(self,T=100):
+        temp_Ct=np.zeros((self.s_dim+self.a_dim,self.s_dim+self.a_dim))
+        temp_ct=np.zeros((self.s_dim+self.a_dim,1))
+        temp_Ct[self.s_dim][self.s_dim]=1.0
+        temp_Ct[self.s_dim+1][self.s_dim+1]=1.0
+
+        self.T=T
+        self.Ct=[]
+        self.ct=[]
+        for i in range(self.T):
+            self.Ct.append(temp_Ct)
+            self.ct.append(temp_ct)
+
+        if len(self.Ct)!=self.T:
+           print("Ct length must be same as T")
+
+    def Kt_kt_end_point(self,x_des=np.array([[100.0],[200.0]])):
+        C_x_des=np.matrix([[1.0,0.0,0.0,0.0],[0.0,1.0,0.0,0.0]])
+        A_o=tf.matmul(C_x_des,self.A)
+        # print(A_o)
+        B_o=tf.matmul(C_x_des,self.B)
+        B_o_T=tf.transpose(B_o)
+        # print(B_o)
+        # print(B_o_T)
+        A_o=tf.matmul(B_o_T,A_o)
+        x_des=tf.matmul(B_o_T,x_des)
+        # print(tf.matmul(B_o_T,B_o))
+        # exit()
+        B_o_T_mul_B_O_inv=tf.linalg.inv(tf.matmul(B_o_T,B_o))
+        self.Kt=-1.0*tf.matmul(B_o_T_mul_B_O_inv,A_o)
+        self.kt=tf.matmul(B_o_T_mul_B_O_inv,x_des)
+
+    def back_Kt_end_point(self,x_des=(100.0,200.0)):
+        s_dim=self.s_dim
+        a_dim=self.a_dim
+        for t in range(self.T-1,-1,-1):
+            if  t==self.T-1:
+                self.Qt=np.matrix(self.Ct[t])
+                self.qt=np.matrix(self.ct[t])
+            else:
+                self.Qt=self.Ct[t]+tf.matmul(tf.matmul(self.Ft_T,self.Vt_1),self.Ft)
+                self.qt=self.ct[t]+tf.matmul(tf.matmul(self.Ft_T,self.Vt_1),self.ft)+tf.matmul(self.Ft_T,self.vt_1)
+
+            Qt_xt_xt=self.catch_sub_matrix(self.Qt,0,0,s_dim,s_dim)
+            Qt_xt_ut=self.catch_sub_matrix(self.Qt,0,s_dim,s_dim,a_dim)
+            Qt_ut_ut=self.catch_sub_matrix(self.Qt,s_dim,s_dim,a_dim,a_dim)
+            Qt_ut_xt=self.catch_sub_matrix(self.Qt,s_dim,0,a_dim,s_dim)
+
+            q_ut=self.catch_sub_matrix(self.qt,s_dim,0,a_dim,1)
+            q_xt=self.catch_sub_matrix(self.qt,0,0,s_dim,1)
+
+            #self.Kt_kt(Qt_ut_ut,Qt_ut_xt,q_ut)
+            if t==self.T-1:
+               self.Kt_kt_end_point(x_des=np.array([[100.0],[200.0]]))
+            else:
+               self.Kt_kt(Qt_ut_ut,Qt_ut_xt,q_ut)
+
+            self.Vt_vt(self.Kt,self.kt,Qt_xt_xt,Qt_xt_ut,Qt_ut_xt,Qt_ut_ut,q_xt,q_ut)
+            self.Kt_vector.append(self.Kt)
+            self.kt_vector.append(self.kt)
+
+            self.Vt_1=self.Vt
+            self.vt_1=self.vt
+
+    def forward_xt_ut(self,x_start=np.array([[0.0],[0.0],[12],[12]])):
+        self.Kt_vector.reverse()
+        self.kt_vector.reverse()
+        xt=x_start
+        self.x_vector.append(xt)
+
+        for i in range(self.T):
+            ut=tf.matmul(self.Kt_vector[i],xt)+self.kt_vector[i]
+            xt=self.f(xt,ut)
+            self.x_vector.append(xt)
+        print(self.x_vector[self.T-1])
+
+    def train_end_point(self):
+        self.Ft_init()
+        self.Ct_init_end_point()
+        self.back_Kt_end_point()
+
 lqr=LQR()
-lqr.back_Kt(T=10)
+lqr.train_end_point()
+lqr.forward_xt_ut()
