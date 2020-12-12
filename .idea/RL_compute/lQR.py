@@ -138,12 +138,12 @@ class LQR:
         return tf.matmul(self.A,xt)+tf.matmul(self.B,ut)
 
     #nearest point path
-    def Ct_init(self,Ct_vector=[],ct_vector=[],T=100):
-        self.Ct=Ct_vector
-        self.ct=ct_vector
-        self.T=T
-        if len(self.Ct)!=self.T:
-           print("Ct length must be same as T")
+    # def Ct_init(self,Ct_vector=[],ct_vector=[],T=100):
+    #     self.Ct=Ct_vector
+    #     self.ct=ct_vector
+    #     self.T=T
+    #     if len(self.Ct)!=self.T:
+    #        print("Ct length must be same as T")
 
     #1、reach end of point with lessest force
     def Ct_init_end_point(self,T=1000):
@@ -215,7 +215,66 @@ class LQR:
             self.Vt_1=self.Vt
             self.vt_1=self.vt
 
-    def forward_xt_ut(self,x_start=np.array([[0.0],[0.0],[330],[330]])):
+    #2.reach end of point with lessest force and reach neastest points on path
+    #create random path betweed start_point:=:end_point
+    def random_path(self,startpoint=[],endpoint=[],T=10,scale=20):
+        x_start=startpoint[0]
+        y_start=startpoint[1]
+        x_end=endpoint[0]
+        y_end=endpoint[1]
+
+        dx=(x_end-x_start)/(T+1)
+        dy=(y_end-y_start)/(T+1)
+        result=[]
+        # result.append([x_start,y_start])
+        x=[]
+        x.append(x_start)
+        y=[]
+        y.append(y_start)
+        for  i in range(T):
+               temp_x=x_start+dx*(i+1)+np.random.normal(loc=0,scale=scale,size=1)
+               temp_y=y_start+dy*(i+1)+np.random.normal(loc=0,scale=scale,size=1)
+               x.append(temp_x)
+               y.append(temp_y)
+               result.append([temp_x,temp_y])
+        x.append(x_end)
+        y.append(y_end)
+        # result.append([x_end,y_end])
+        import matplotlib.pyplot as plt
+        plt.scatter(x,y)
+        plt.show()
+        return result
+
+    def Ct_init_neast_point(self,T=100,startPoint=[],endpoint=[],scale=20):
+        # self.Ft_init()
+        x_des=self.random_path(startpoint=startPoint,endpoint=endpoint,T=T,scale=scale)
+        temp_Ct=np.zeros((self.s_dim+self.a_dim,self.s_dim+self.a_dim))
+        # temp_ct=np.zeros((self.s_dim+self.a_dim,1))
+        temp_Ct[self.s_dim][self.s_dim]=1.0
+        temp_Ct[self.s_dim+1][self.s_dim+1]=1.0
+        temp_Ct[0][0]=1.0
+        temp_Ct[1][1]=1.0
+
+        self.T=T+1
+        self.Ct=[]
+        temp_Ct_start=temp_Ct.copy() #
+        temp_Ct_start[0][0]=0.0
+        temp_Ct_start[1][1]=0.0
+        self.Ct.append(temp_Ct_start)   #start_point,only need action small,no need path nearest
+        self.ct=[]
+        self.ct.append(np.zeros((self.s_dim+self.a_dim,1))) #start_point
+        for e in  x_des:
+            # e=list(e)
+            self.Ct.append(temp_Ct)
+            self.ct.append(tf.reshape(-1.0*np.array([e[0],e[1],0.0,0.0,0.0,0.0],dtype=float),(-1,1)))
+        # print(self.ct)
+        # print(self.Ct)
+        # exit()
+        if len(self.Ct)!=self.T:
+           print("Ct length must be same as T")
+
+    #-----------------------------
+    def forward_xt_ut(self,x_start):
         self.Kt_vector.reverse()
         self.kt_vector.reverse()
         xt=x_start
@@ -226,14 +285,21 @@ class LQR:
             xt=self.f(xt,ut)
             self.x_vector.append(xt)
             self.ut_vector.append(ut)
-        # print(self.x_vector[self.T-2])
-        # print(self.x_vector[self.T-1])
+        # print(self.ut_vector)
+        # print(self.x_vector)
+
+    def train_neast_point(self):
+        self.Ft_init()
+        self.Ct_init_neast_point(T=100,startPoint=[2000.0,1000.0],endpoint=[0.0,0.0],scale=30)
+        self.back_Kt_end_point(np.array([[0.0],[0.0]]))
+
 
     def train_end_point(self):
         self.Ft_init()
         self.Ct_init_end_point(100)
-        self.back_Kt_end_point(np.array([[0.0],[0.0]]))
+        self.back_Kt_end_point(np.array([[200.0],[300.0]])) #endpoint
 
+    #----------------------------
     def trace_map(self):
         import matplotlib.pyplot as plt
         fig=plt.figure()
@@ -250,7 +316,15 @@ class LQR:
         ax2.scatter(x,squares)
         plt.show()
 
+#1、x_des point   navigate
 lqr=LQR()
 lqr.train_end_point()
-lqr.forward_xt_ut(np.array([[2000.0],[2000.0],[10],[-5]]))
+lqr.forward_xt_ut(np.array([[2000.0],[1000.0],[10],[-5]]))
 lqr.trace_map()
+
+#2、neast path    navigate
+lqr=LQR()
+lqr.train_neast_point()
+lqr.forward_xt_ut(np.array([[2000.0],[1000.0],[10],[-5]]))
+lqr.trace_map()
+
