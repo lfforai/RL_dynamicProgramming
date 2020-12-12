@@ -226,8 +226,8 @@ class LQR:
             xt=self.f(xt,ut)
             self.x_vector.append(xt)
             self.ut_vector.append(ut)
-        print(self.x_vector[self.T-2])
-        print(self.x_vector[self.T-1])
+        # print(self.x_vector[self.T-2])
+        # print(self.x_vector[self.T-1])
 
     def train_end_point(self):
         self.Ft_init()
@@ -236,13 +236,18 @@ class LQR:
 
     def trace_map(self):
         import matplotlib.pyplot as plt
-        squares=[e[1] for e  in self.x_vector]
-        x=      [e[0] for e  in self.x_vector]
+        fig=plt.figure()
         ut_x=[e[0] for  e  in self.ut_vector]
         ut_y=[e[1] for  e  in self.ut_vector]
         x1=range(len(self.ut_vector))
-        plt.plot(x1,ut_x)
-        plt.plot(x1,ut_y)
+        ax1=fig.add_subplot(211) #2*2的图形 在第一个位置
+        ax1.plot(x1,ut_x)
+        ax1.plot(x1,ut_y)
+        squares=[list(e[1]) for e  in self.x_vector]
+        x=[list(e[0]) for e  in self.x_vector]
+        ax2=fig.add_subplot(212)
+        ax2.plot(x,squares)
+        ax2.scatter(x,squares)
         plt.show()
 
 lqr=LQR()
