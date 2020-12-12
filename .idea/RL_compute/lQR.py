@@ -63,6 +63,8 @@ class LQR:
         self.x_vector=[]
         self.u_vector=[]
 
+        self.ut_vector=[]
+
     def catch_sub_matrix(self,matrix,row_index,col_index,row_size,col_size):
         #Ct=np.matrix(tf.reshape(np.array(list(range(36))),shape=(6,6)))
         # print(Ct)
@@ -92,7 +94,7 @@ class LQR:
                  self.qt=np.matrix(ct[t])
              else:
                  self.Qt=self.Ct[t]+tf.matmul(tf.matmul(self.Ft_T,self.Vt_1),self.Ft)
-                 self.qt=self.ct[t]+tf.matmul(tf.matmul(self.Ft_T,self.Vt_1),self.ft)+tf.matmul(self.Ft_T,self.Vt_1)
+                 self.qt=self.ct[t]+tf.matmul(tf.matmul(self.Ft_T,self.Vt_1),self.ft)+tf.matmul(self.Ft_T,self.vt_1)
 
              Qt_xt_xt=self.catch_sub_matrix(self.Qt,0,0,s_dim,s_dim)
              Qt_xt_ut=self.catch_sub_matrix(self.Qt,0,s_dim,s_dim,a_dim)
@@ -111,7 +113,7 @@ class LQR:
              self.Vt_1=self.Vt
              self.vt_1=self.vt
 
-    def Ft_init(self,h=300.0,m=1400.0,s_dim=4,a_dim=2):
+    def Ft_init(self,h=600.0,m=1400.0,s_dim=4,a_dim=2):
         self.s_dim=s_dim
         self.a_dim=a_dim
         # m =car   kg
@@ -144,7 +146,7 @@ class LQR:
            print("Ct length must be same as T")
 
     #1、reach end of point with lessest force
-    def Ct_init_end_point(self,T=100):
+    def Ct_init_end_point(self,T=1000):
         temp_Ct=np.zeros((self.s_dim+self.a_dim,self.s_dim+self.a_dim))
         temp_ct=np.zeros((self.s_dim+self.a_dim,1))
         temp_Ct[self.s_dim][self.s_dim]=1.0
@@ -161,17 +163,15 @@ class LQR:
            print("Ct length must be same as T")
 
     def Kt_kt_end_point(self,x_des=np.array([[100.0],[200.0]])):
+        #xdes=c*A*xt+c*B*ut
+        #(c*B)^T*xdes=(c*B)^T(c*A)*xt+(c*B)^T*(c*B)*ut
+        #ut=-inv((c*B)^T*(c*B))*(c*B)^T(c*A)*xt+inv((c*B)^T*(c*B))*(c*B)^T*xdes
         C_x_des=np.matrix([[1.0,0.0,0.0,0.0],[0.0,1.0,0.0,0.0]])
         A_o=tf.matmul(C_x_des,self.A)
-        # print(A_o)
         B_o=tf.matmul(C_x_des,self.B)
         B_o_T=tf.transpose(B_o)
-        # print(B_o)
-        # print(B_o_T)
         A_o=tf.matmul(B_o_T,A_o)
         x_des=tf.matmul(B_o_T,x_des)
-        # print(tf.matmul(B_o_T,B_o))
-        # exit()
         B_o_T_mul_B_O_inv=tf.linalg.inv(tf.matmul(B_o_T,B_o))
         self.Kt=-1.0*tf.matmul(B_o_T_mul_B_O_inv,A_o)
         self.kt=tf.matmul(B_o_T_mul_B_O_inv,x_des)
@@ -187,17 +187,24 @@ class LQR:
                 self.Qt=self.Ct[t]+tf.matmul(tf.matmul(self.Ft_T,self.Vt_1),self.Ft)
                 self.qt=self.ct[t]+tf.matmul(tf.matmul(self.Ft_T,self.Vt_1),self.ft)+tf.matmul(self.Ft_T,self.vt_1)
 
+            #print(self.Qt)
             Qt_xt_xt=self.catch_sub_matrix(self.Qt,0,0,s_dim,s_dim)
+            #print(Qt_xt_xt)
             Qt_xt_ut=self.catch_sub_matrix(self.Qt,0,s_dim,s_dim,a_dim)
+            #print(Qt_xt_ut)
             Qt_ut_ut=self.catch_sub_matrix(self.Qt,s_dim,s_dim,a_dim,a_dim)
+            #print(Qt_ut_ut)
             Qt_ut_xt=self.catch_sub_matrix(self.Qt,s_dim,0,a_dim,s_dim)
+            # print(Qt_ut_xt)
 
             q_ut=self.catch_sub_matrix(self.qt,s_dim,0,a_dim,1)
             q_xt=self.catch_sub_matrix(self.qt,0,0,s_dim,1)
+            # print(q_ut)
+            # print(q_xt)
 
             #self.Kt_kt(Qt_ut_ut,Qt_ut_xt,q_ut)
             if t==self.T-1:
-               self.Kt_kt_end_point(x_des=np.array([[100.0],[200.0]]))
+               self.Kt_kt_end_point(x_des=x_des)
             else:
                self.Kt_kt(Qt_ut_ut,Qt_ut_xt,q_ut)
 
@@ -208,7 +215,7 @@ class LQR:
             self.Vt_1=self.Vt
             self.vt_1=self.vt
 
-    def forward_xt_ut(self,x_start=np.array([[0.0],[0.0],[12],[12]])):
+    def forward_xt_ut(self,x_start=np.array([[0.0],[0.0],[330],[330]])):
         self.Kt_vector.reverse()
         self.kt_vector.reverse()
         xt=x_start
@@ -218,13 +225,27 @@ class LQR:
             ut=tf.matmul(self.Kt_vector[i],xt)+self.kt_vector[i]
             xt=self.f(xt,ut)
             self.x_vector.append(xt)
+            self.ut_vector.append(ut)
+        print(self.x_vector[self.T-2])
         print(self.x_vector[self.T-1])
 
     def train_end_point(self):
         self.Ft_init()
-        self.Ct_init_end_point()
-        self.back_Kt_end_point()
+        self.Ct_init_end_point(100)
+        self.back_Kt_end_point(np.array([[0.0],[0.0]]))
+
+    def trace_map(self):
+        import matplotlib.pyplot as plt
+        squares=[e[1] for e  in self.x_vector]
+        x=      [e[0] for e  in self.x_vector]
+        ut_x=[e[0] for  e  in self.ut_vector]
+        ut_y=[e[1] for  e  in self.ut_vector]
+        x1=range(len(self.ut_vector))
+        plt.plot(x1,ut_x)
+        plt.plot(x1,ut_y)
+        plt.show()
 
 lqr=LQR()
 lqr.train_end_point()
-lqr.forward_xt_ut()
+lqr.forward_xt_ut(np.array([[2000.0],[2000.0],[10],[-5]]))
+lqr.trace_map()
